@@ -28,17 +28,21 @@
 
 Summary:       Extension for communicating with the Redis key-value store
 Name:          %{php}-pecl-%{pecl_name}
-Version:       4.3.0
-Release:       3%{?dist}
+Version:       5.0.2
+Release:       1%{?dist}
 Source0:       https://pecl.php.net/get/%{pecl_name}-%{version}.tgz
 License:       PHP
 URL:           https://pecl.php.net/package/%{pecl_name}
 
 BuildRequires: gcc
-BuildRequires: %{php}-devel
+BuildRequires: %{php}-devel > 7
+BuildRequires: %{php}-json
 # build require pear1's dependencies to avoid mismatched php stacks
 BuildRequires: pear1 %{php}-cli %{php}-common %{php}-xml
 BuildRequires: %{php}-pecl-igbinary-devel
+%ifnarch ppc64
+BuildRequires: %{php}-pecl-msgpack-devel >= 2.0.3
+%endif
 BuildRequires: liblzf-devel
 # to run Test suite
 %if %{with_tests}
@@ -47,7 +51,11 @@ BuildRequires: redis >= 3
 
 Requires:      php(zend-abi) = %{php_zend_api}
 Requires:      php(api) = %{php_core_api}
+Requires:      php73-json
 Requires:      php73-pecl-igbinary%{?_isa}
+%ifnarch ppc64
+Requires:      php73-pecl-msgpack%{?_isa}
+%endif
 
 Provides:      php-%{pecl_name}               = %{version}
 Provides:      php-%{pecl_name}%{?_isa}       = %{version}
@@ -128,19 +136,19 @@ extension = %{pecl_name}.so
 ;redis.arrays.readtimeout = 0
 ;redis.arrays.retryinterval = 0
 ;redis.arrays.consistent = 0
-;redis.clusters.auth = 0
+;redis.clusters.cache_slots = 0
+;redis.clusters.auth = ''
 ;redis.clusters.persistent = 0
 ;redis.clusters.read_timeout = 0
 ;redis.clusters.seeds = ''
 ;redis.clusters.timeout = 0
-;redis.pconnect.pooling_enabled = 0
+;redis.pconnect.pooling_enabled = 1
 ;redis.pconnect.connection_limit = 0
 ;redis.session.locking_enabled = 0
 ;redis.session.lock_expire = 0
 ;redis.session.lock_retries = 10
 ;redis.session.lock_wait_time = 2000
 EOF
-
 
 %build
 cd NTS
@@ -149,6 +157,9 @@ cd NTS
     --enable-redis \
     --enable-redis-session \
     --enable-redis-igbinary \
+%ifnarch ppc64
+    --enable-redis-msgpack \
+%endif
     --enable-redis-lzf \
     --with-liblzf \
     --with-php-config=%{_bindir}/php-config
@@ -161,6 +172,9 @@ cd ../ZTS
     --enable-redis \
     --enable-redis-session \
     --enable-redis-igbinary \
+%ifnarch ppc64
+    --enable-redis-msgpack \
+%endif
     --enable-redis-lzf \
     --with-liblzf \
     --with-php-config=%{_bindir}/zts-php-config
@@ -191,14 +205,17 @@ done
 
 %check
 # simple module load test
-%{__php} --no-php-ini \
-    --define extension=igbinary.so \
+DEPS="--no-php-ini  --define extension=json.so"
+DEPS="$DEPS --define extension=igbinary.so"
+%ifnarch ppc64
+    DEPS="$DEPS --define extension=msgpack.so"
+%endif
+%{__php} $DEPS \
     --define extension=%{buildroot}%{php_extdir}/%{pecl_name}.so \
     --modules | grep %{pecl_name}
 
 %if %{with_zts}
-%{__ztsphp} --no-php-ini \
-    --define extension=igbinary.so \
+%{__ztsphp} $DEPS \
     --define extension=%{buildroot}%{php_ztsextdir}/%{pecl_name}.so \
     --modules | grep %{pecl_name}
 %endif
@@ -223,8 +240,7 @@ sed -e "s/6379/$port/" -i *.php
 # Run the test Suite
 ret=0
 export TEST_PHP_EXECUTABLE=%{__php}
-export TEST_PHP_ARGS="--no-php-ini \
-    --define extension=igbinary.so \
+export TEST_PHP_ARGS="$DEPS \
     --define extension=%{buildroot}%{php_extdir}/%{pecl_name}.so"
 $TEST_PHP_EXECUTABLE $TEST_PHP_ARGS TestRedis.php || ret=1
 
@@ -273,6 +289,9 @@ fi
 
 
 %changelog
+* Wed Aug 17 2019 Liam Sorsby <liam.sorsby@sky.com> - 5.0.2-1
+- Update to 5.0.2 (stable)
+
 * Wed Jun 12 2019 Carl George <carl@george.computer> - 4.3.0-3
 - Build require pear1's dependencies to avoid mismatched php stacks
 - Explicitly require php73-pecl-igbinary to avoid dependency problems
