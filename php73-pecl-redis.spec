@@ -28,7 +28,7 @@
 
 Summary:       Extension for communicating with the Redis key-value store
 Name:          %{php}-pecl-%{pecl_name}
-Version:       5.0.2
+Version:       5.1.0
 Release:       1%{?dist}
 Source0:       https://pecl.php.net/get/%{pecl_name}-%{version}.tgz
 License:       PHP
@@ -289,6 +289,9 @@ fi
 
 
 %changelog
+* Mon Nov 04 2019 Carl George <carl@george.computer> - 5.1.0-1
+- Latest upstream
+
 * Wed Aug 17 2019 Liam Sorsby <liam.sorsby@sky.com> - 5.0.2-1
 - Update to 5.0.2 (stable)
 
